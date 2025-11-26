@@ -23,6 +23,7 @@ public class PicoLimboWrapper {
   private static String currentArchiveName;
   private static File currentBinaryFile;
   private static volatile boolean shouldRestart = false;
+  private static volatile boolean shouldExit = false;
   private static volatile boolean isUpdating = false;
   private static final Object updateLock = new Object();
 
@@ -49,18 +50,56 @@ public class PicoLimboWrapper {
       // Register shutdown hook
       registerShutdownHook();
 
+      // Start input monitoring thread (shared across all restarts)
+      Thread inputThread = new Thread(() -> {
+        try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in))) {
+          String line;
+          while ((line = consoleReader.readLine()) != null) {
+            String command = line.trim().toLowerCase();
+
+            // Check for stop/exit/quit commands
+            if (command.equals("stop") || command.equals("exit") || command.equals("quit") || command.equals("end")) {
+              System.out.println("[TPMC Limbo] Received stop command, shutting down...");
+              shouldExit = true;
+              if (picoLimboProcess != null && picoLimboProcess.isAlive()) {
+                picoLimboProcess.destroy();
+                try {
+                  if (!picoLimboProcess.waitFor(5, TimeUnit.SECONDS)) {
+                    picoLimboProcess.destroyForcibly();
+                  }
+                } catch (InterruptedException e) {
+                  picoLimboProcess.destroyForcibly();
+                }
+              }
+              break;
+            }
+            // Check for update command
+            else if (command.equals("update") || command.equals("reload")) {
+              System.out.println("[TPMC Limbo] Received update command, downloading latest version...");
+              handleUpdate();
+            }
+          }
+        } catch (IOException e) {
+          // Console closed, this is normal
+        }
+      });
+      inputThread.setDaemon(true);
+      inputThread.start();
+
       // Launch PicoLimbo in a restart loop
-      while (true) {
+      while (!shouldExit) {
         shouldRestart = false;
         try {
           int exitCode = launchPicoLimbo();
 
-          if (!shouldRestart) {
+          if (!shouldRestart && !shouldExit) {
             System.out.println("[TPMC Limbo] PicoLimbo exited with code " + exitCode);
             System.exit(exitCode);
           }
 
-          System.out.println("[TPMC Limbo] Restarting PicoLimbo...");
+          if (shouldRestart && !shouldExit) {
+            System.out.println("[TPMC Limbo] Restarting PicoLimbo...");
+          }
         } catch (Exception e) {
           if (shouldRestart) {
             System.err.println("[TPMC Limbo] Error during restart: " + e.getMessage());
@@ -70,6 +109,9 @@ public class PicoLimboWrapper {
           }
         }
       }
+
+      System.out.println("[TPMC Limbo] Shutdown complete");
+      System.exit(0);
 
     } catch (Exception e) {
       System.err.println("[TPMC Limbo] Error: " + e.getMessage());
@@ -100,41 +142,6 @@ public class PicoLimboWrapper {
     });
     outputThread.setDaemon(false);
     outputThread.start();
-
-    // Monitor console input for stop and update commands
-    Thread inputThread = new Thread(() -> {
-      try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in))) {
-        String line;
-        while ((line = consoleReader.readLine()) != null) {
-          String command = line.trim().toLowerCase();
-
-          // Check for stop/exit/quit commands
-          if (command.equals("stop") || command.equals("exit") || command.equals("quit") || command.equals("end")) {
-            System.out.println("[TPMC Limbo] Received stop command, shutting down...");
-            if (picoLimboProcess != null && picoLimboProcess.isAlive()) {
-              picoLimboProcess.destroy();
-              try {
-                if (!picoLimboProcess.waitFor(5, TimeUnit.SECONDS)) {
-                  picoLimboProcess.destroyForcibly();
-                }
-              } catch (InterruptedException e) {
-                picoLimboProcess.destroyForcibly();
-              }
-            }
-            System.exit(0);
-          }
-          // Check for update command
-          else if (command.equals("update") || command.equals("reload")) {
-            System.out.println("[TPMC Limbo] Received update command, downloading latest version...");
-            handleUpdate();
-          }
-        }
-      } catch (IOException e) {
-        // Console closed, this is normal
-      }
-    });
-    inputThread.setDaemon(true);
-    inputThread.start();
 
     // Wait for process to complete
     int exitCode = picoLimboProcess.waitFor();
