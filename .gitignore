@@ -33,3 +33,4 @@ server.toml
 logs/
 plugins/
 world/
+wrapper.properties

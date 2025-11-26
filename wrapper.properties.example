@@ -1,0 +1,23 @@
+#PicoLimbo Wrapper Configuration
+#
+# This file allows you to customize the wrapper's download behavior.
+# The wrapper will automatically create this file with default values on first run.
+
+# GitHub repository to fetch releases from (format: owner/repo)
+# Default: Quozul/PicoLimbo
+# Example for a fork: github.repo=YourUsername/PicoLimbo
+github.repo=Quozul/PicoLimbo
+
+# Direct download URL for the PicoLimbo archive
+# If set, this will override the GitHub releases API and download directly from this URL
+# Useful for:
+#  - Custom builds hosted elsewhere
+#  - Avoiding GitHub API rate limits
+#  - Using a specific version instead of latest
+# Leave empty to use GitHub releases (default behavior)
+# 
+# Examples:
+#  - Direct GitHub release: download.url=https://github.com/Quozul/PicoLimbo/releases/download/v1.21.7/pico_limbo_windows-x86_64.zip
+#  - Custom server: download.url=https://example.com/picolimbo/custom-build.zip
+#  - Local network: download.url=http://192.168.1.100/pico_limbo.zip
+download.url=

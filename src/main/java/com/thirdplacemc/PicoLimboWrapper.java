@@ -16,32 +16,38 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class PicoLimboWrapper {
-  private static final String GITHUB_REPO = "Quozul/PicoLimbo";
   private static final String BINARIES_DIR = "binaries";
   private static Process picoLimboProcess;
+  private static WrapperConfig config;
+  private static String currentArchiveName;
+  private static File currentBinaryFile;
+  private static volatile boolean shouldRestart = false;
 
   public static void main(String[] args) {
     try {
-      System.out.println("[Wrapper] Starting PicoLimbo Wrapper...");
+      System.out.println("[TPMC Limbo] Starting PicoLimbo Wrapper...");
+
+      // Load configuration
+      config = new WrapperConfig();
 
       // Detect OS and architecture
-      String binaryName = detectBinaryName();
-      System.out.println("[Wrapper] Detected OS: " + getOSInfo());
+      currentArchiveName = detectBinaryName();
+      System.out.println("[TPMC Limbo] Detected OS: " + getOSInfo());
 
       // Ensure binary exists (download if needed)
-      File binaryFile = ensureBinaryExists(binaryName);
+      currentBinaryFile = ensureBinaryExists(currentArchiveName);
 
       // Set executable permissions on Unix systems
       if (!isWindows()) {
         binaryFile.setExecutable(true, false);
-        System.out.println("[Wrapper] Set executable permissions");
+        System.out.println("[TPMC Limbo] Set executable permissions");
       }
 
       // Register shutdown hook
       registerShutdownHook();
 
       // Launch PicoLimbo
-      System.out.println("[Wrapper] Launching PicoLimbo...");
+      System.out.println("[TPMC Limbo] Launching PicoLimbo...");
       ProcessBuilder processBuilder = new ProcessBuilder(binaryFile.getAbsolutePath());
       processBuilder.directory(new File(System.getProperty("user.dir")));
       processBuilder.redirectErrorStream(true);
@@ -72,7 +78,7 @@ public class PicoLimboWrapper {
 
             // Check for stop/exit/quit commands
             if (command.equals("stop") || command.equals("exit") || command.equals("quit") || command.equals("end")) {
-              System.out.println("[Wrapper] Received stop command, shutting down...");
+              System.out.println("[TPMC Limbo] Received stop command, shutting down...");
               if (picoLimboProcess != null && picoLimboProcess.isAlive()) {
                 picoLimboProcess.destroy(); // Sends SIGTERM on Unix, terminates on Windows
                 try {
@@ -99,7 +105,7 @@ public class PicoLimboWrapper {
       System.exit(exitCode);
 
     } catch (Exception e) {
-      System.err.println("[Wrapper] Error: " + e.getMessage());
+      System.err.println("[TPMC Limbo] Error: " + e.getMessage());
       e.printStackTrace();
       System.exit(1);
     }
@@ -147,12 +153,12 @@ public class PicoLimboWrapper {
 
     // Check if binary already exists
     if (binaryFile.exists()) {
-      System.out.println("[Wrapper] Binary found: " + binaryName);
+      System.out.println("[TPMC Limbo] Binary found: " + binaryName);
       return binaryFile;
     }
 
     // Download and extract archive from GitHub releases
-    System.out.println("[Wrapper] Binary not found, fetching latest release...");
+    System.out.println("[TPMC Limbo] Binary not found, fetching latest release...");
     File archiveFile = new File(BINARIES_DIR, archiveName);
     downloadArchive(archiveName, archiveFile);
     extractArchive(archiveFile, binariesPath.toFile());
@@ -180,8 +186,16 @@ public class PicoLimboWrapper {
   }
 
   private static void downloadArchive(String archiveName, File targetFile) throws IOException {
+    // Check if custom download URL is provided
+    if (config.hasCustomDownloadUrl()) {
+      String customUrl = config.getDownloadUrl();
+      System.out.println("[TPMC Limbo] Using custom download URL");
+      downloadFromUrl(customUrl, targetFile);
+      return;
+    }
+
     // Get latest release info from GitHub API
-    String apiUrl = "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest";
+    String apiUrl = "https://api.github.com/repos/" + config.getGitHubRepo() + "/releases/latest";
     HttpURLConnection connection = (HttpURLConnection) new URL(apiUrl).openConnection();
     connection.setRequestMethod("GET");
     connection.setRequestProperty("User-Agent", "PicoLimboWrapper");
@@ -211,7 +225,7 @@ public class PicoLimboWrapper {
     }
 
     // Download the archive
-    System.out.println("[Wrapper] Downloading " + archiveName + "...");
+    System.out.println("[TPMC Limbo] Downloading " + archiveName + "...");
     HttpURLConnection downloadConnection = (HttpURLConnection) new URL(downloadUrl).openConnection();
     downloadConnection.setRequestProperty("User-Agent", "PicoLimboWrapper");
     downloadConnection.setConnectTimeout(10000);
@@ -234,14 +248,48 @@ public class PicoLimboWrapper {
         if (fileSize > 0) {
           int progress = (int) ((downloadedSize * 100) / fileSize);
           if (progress >= lastProgress + 10) {
-            System.out.println("[Wrapper] Download progress: " + progress + "%");
+            System.out.println("[TPMC Limbo] Download progress: " + progress + "%");
             lastProgress = progress;
           }
         }
       }
     }
 
-    System.out.println("[Wrapper] Download complete");
+    System.out.println("[TPMC Limbo] Download complete");
+  }
+
+  private static void downloadFromUrl(String downloadUrl, File targetFile) throws IOException {
+    System.out.println("[TPMC Limbo] Downloading from " + downloadUrl + "...");
+    HttpURLConnection downloadConnection = (HttpURLConnection) new URL(downloadUrl).openConnection();
+    downloadConnection.setRequestProperty("User-Agent", "PicoLimboWrapper");
+    downloadConnection.setConnectTimeout(10000);
+    downloadConnection.setReadTimeout(30000);
+
+    long fileSize = downloadConnection.getContentLengthLong();
+    long downloadedSize = 0;
+    int lastProgress = 0;
+
+    try (
+        InputStream in = new BufferedInputStream(downloadConnection.getInputStream());
+        FileOutputStream out = new FileOutputStream(targetFile)) {
+      byte[] buffer = new byte[8192];
+      int bytesRead;
+      while ((bytesRead = in.read(buffer)) != -1) {
+        out.write(buffer, 0, bytesRead);
+        downloadedSize += bytesRead;
+
+        // Show progress every 10%
+        if (fileSize > 0) {
+          int progress = (int) ((downloadedSize * 100) / fileSize);
+          if (progress >= lastProgress + 10) {
+            System.out.println("[TPMC Limbo] Download progress: " + progress + "%");
+            lastProgress = progress;
+          }
+        }
+      }
+    }
+
+    System.out.println("[TPMC Limbo] Download complete");
   }
 
   private static void extractArchive(File archiveFile, File destinationDir) throws IOException {
@@ -255,11 +303,11 @@ public class PicoLimboWrapper {
       throw new IOException("Unsupported archive format: " + fileName);
     }
 
-    System.out.println("[Wrapper] Extraction complete");
+    System.out.println("[TPMC Limbo] Extraction complete");
   }
 
   private static void extractZip(File zipFile, File destinationDir) throws IOException {
-    System.out.println("[Wrapper] Extracting ZIP archive...");
+    System.out.println("[TPMC Limbo] Extracting ZIP archive...");
 
     try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
       ZipEntry entry;
@@ -287,7 +335,7 @@ public class PicoLimboWrapper {
   }
 
   private static void extractTarGz(File tarGzFile, File destinationDir) throws IOException {
-    System.out.println("[Wrapper] Extracting TAR.GZ archive...");
+    System.out.println("[TPMC Limbo] Extracting TAR.GZ archive...");
 
     try (GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(tarGzFile))) {
       extractTar(gzis, destinationDir);
@@ -420,7 +468,7 @@ public class PicoLimboWrapper {
         }
       }
     } catch (Exception e) {
-      System.err.println("[Wrapper] Error parsing GitHub API response: " + e.getMessage());
+      System.err.println("[TPMC Limbo] Error parsing GitHub API response: " + e.getMessage());
     }
     return null;
   }
@@ -428,20 +476,20 @@ public class PicoLimboWrapper {
   private static void registerShutdownHook() {
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       if (picoLimboProcess != null && picoLimboProcess.isAlive()) {
-        System.out.println("[Wrapper] Shutting down PicoLimbo...");
+        System.out.println("[TPMC Limbo] Shutting down PicoLimbo...");
         picoLimboProcess.destroy();
 
         try {
           // Wait up to 5 seconds for graceful shutdown
           if (!picoLimboProcess.waitFor(5, TimeUnit.SECONDS)) {
-            System.out.println("[Wrapper] Force killing PicoLimbo...");
+            System.out.println("[TPMC Limbo] Force killing PicoLimbo...");
             picoLimboProcess.destroyForcibly();
           }
         } catch (InterruptedException e) {
           picoLimboProcess.destroyForcibly();
         }
 
-        System.out.println("[Wrapper] Shutdown complete");
+        System.out.println("[TPMC Limbo] Shutdown complete");
       }
     }));
   }

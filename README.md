@@ -63,27 +63,27 @@ java -jar build\libs\PicoLimboWrapper.jar
 ### First Run (with download):
 
 ```
-[Wrapper] Starting PicoLimbo Wrapper...
-[Wrapper] Detected OS: Linux x86_64
-[Wrapper] Binary not found, fetching latest release...
-[Wrapper] Downloading pico_limbo-x86_64-unknown-linux-gnu...
-[Wrapper] Download progress: 10%
-[Wrapper] Download progress: 20%
+[TPMC Limbo] Starting PicoLimbo Wrapper...
+[TPMC Limbo] Detected OS: Linux x86_64
+[TPMC Limbo] Binary not found, fetching latest release...
+[TPMC Limbo] Downloading pico_limbo-x86_64-unknown-linux-gnu...
+[TPMC Limbo] Download progress: 10%
+[TPMC Limbo] Download progress: 20%
 ...
-[Wrapper] Download complete
-[Wrapper] Set executable permissions
-[Wrapper] Launching PicoLimbo...
+[TPMC Limbo] Download complete
+[TPMC Limbo] Set executable permissions
+[TPMC Limbo] Launching PicoLimbo...
 [PicoLimbo output follows...]
 ```
 
 ### Subsequent Runs (cached binary):
 
 ```
-[Wrapper] Starting PicoLimbo Wrapper...
-[Wrapper] Detected OS: Linux x86_64
-[Wrapper] Binary found: pico_limbo-x86_64-unknown-linux-gnu
-[Wrapper] Set executable permissions
-[Wrapper] Launching PicoLimbo...
+[TPMC Limbo] Starting PicoLimbo Wrapper...
+[TPMC Limbo] Detected OS: Linux x86_64
+[TPMC Limbo] Binary found: pico_limbo-x86_64-unknown-linux-gnu
+[TPMC Limbo] Set executable permissions
+[TPMC Limbo] Launching PicoLimbo...
 [PicoLimbo output follows...]
 ```
 
@@ -100,9 +100,66 @@ The wrapper will automatically download PicoLimbo on first startup. The download
 
 ## Configuration
 
-The wrapper itself requires no configuration. All PicoLimbo settings are managed through the standard `server.toml` file, which should be placed in the same directory as the wrapper JAR.
+The wrapper itself requires minimal configuration. On first run, it will create a `wrapper.properties` file with default settings.
+
+### wrapper.properties
+
+```properties
+# GitHub repository to fetch releases from
+github.repo=Quozul/PicoLimbo
+
+# Direct download URL (overrides GitHub if set)
+download.url=
+```
+
+**Configuration Options:**
+
+- **`github.repo`**: Specify a different GitHub repository (useful for forks)
+
+  - Format: `owner/repo`
+  - Default: `Quozul/PicoLimbo`
+  - Example: `github.repo=YourUsername/CustomPicoLimbo`
+
+- **`download.url`**: Provide a direct download URL for the PicoLimbo archive
+  - If set, bypasses GitHub API and downloads from this URL
+  - Useful for custom builds, avoiding rate limits, or pinning to a specific version
+  - Leave empty to use GitHub releases (default)
+  - Examples:
+
+    ```properties
+    # Specific GitHub release version
+    download.url=https://github.com/Quozul/PicoLimbo/releases/download/v1.21.7/pico_limbo_windows-x86_64.zip
+
+    # Custom build server
+    download.url=https://example.com/builds/pico_limbo.zip
+    ```
+
+All PicoLimbo settings are managed through the standard `server.toml` file, which should be placed in the same directory as the wrapper JAR.
 
 For PicoLimbo configuration options, see the [PicoLimbo documentation](https://github.com/Quozul/PicoLimbo).
+
+## Stopping the Server
+
+The wrapper supports multiple methods for gracefully stopping PicoLimbo:
+
+### Console Commands
+
+Type any of these commands in the console:
+
+- `stop`
+- `exit`
+- `quit`
+- `end`
+
+The wrapper will send a SIGTERM signal to PicoLimbo and wait up to 5 seconds for graceful shutdown.
+
+### Signal Handling
+
+- **SIGTERM/SIGINT**: The wrapper catches these signals and forwards them to PicoLimbo
+- **Ctrl+C**: Triggers graceful shutdown on all platforms
+- **Pterodactyl**: Use the panel's stop button (sends SIGTERM)
+
+**Note:** PicoLimbo itself does not read console input. The wrapper intercepts stop commands and handles shutdown on your behalf.
 
 ## Supported Platforms
 
