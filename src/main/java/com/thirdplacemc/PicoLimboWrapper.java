@@ -138,7 +138,7 @@ public class PicoLimboWrapper {
 
     // Wait for process to complete
     int exitCode = picoLimboProcess.waitFor();
-    
+
     // If an update is in progress, wait for it to complete
     synchronized (updateLock) {
       while (isUpdating) {
@@ -149,7 +149,7 @@ public class PicoLimboWrapper {
         }
       }
     }
-    
+
     return exitCode;
   }
 
@@ -157,7 +157,7 @@ public class PicoLimboWrapper {
     synchronized (updateLock) {
       isUpdating = true;
     }
-    
+
     File backupBinary = null;
     try {
       // Download new version (while PicoLimbo is still running)
@@ -230,14 +230,15 @@ public class PicoLimboWrapper {
         archiveFile.delete();
       }
 
-      // Verify the new binary by attempting to start it and checking for "Listening" message
+      // Verify the new binary by attempting to start it and checking for "Listening"
+      // message
       System.out.println("[TPMC Limbo] Verifying new binary...");
       ProcessBuilder verifyBuilder = new ProcessBuilder(currentBinaryFile.getAbsolutePath());
       verifyBuilder.redirectErrorStream(true);
       Process verifyProcess = verifyBuilder.start();
 
       // Read output and look for "Listening" message
-      final boolean[] foundListening = {false};
+      final boolean[] foundListening = { false };
       Thread outputReader = new Thread(() -> {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(verifyProcess.getInputStream()))) {
           String line;
@@ -259,7 +260,8 @@ public class PicoLimboWrapper {
           break;
         }
         if (!verifyProcess.isAlive()) {
-          throw new IOException("New binary crashed during verification (exit code: " + verifyProcess.exitValue() + ")");
+          throw new IOException(
+              "New binary crashed during verification (exit code: " + verifyProcess.exitValue() + ")");
         }
         Thread.sleep(100);
       }
