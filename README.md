@@ -377,7 +377,7 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 ## Credits
 
 - [PicoLimbo](https://github.com/Quozul/PicoLimbo) - The Minecraft limbo server this wrapper manages
-- Built for [ThirdPlaceMC](https://github.com/YourOrg)
+- Built for [ThirdPlaceMC](https://discord.thirdplacemc.net)
 
 ## Version History
 
