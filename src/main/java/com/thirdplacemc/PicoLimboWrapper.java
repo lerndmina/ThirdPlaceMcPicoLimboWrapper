@@ -10,6 +10,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
@@ -22,6 +23,8 @@ public class PicoLimboWrapper {
   private static String currentArchiveName;
   private static File currentBinaryFile;
   private static volatile boolean shouldRestart = false;
+  private static volatile boolean isUpdating = false;
+  private static final Object updateLock = new Object();
 
   public static void main(String[] args) {
     try {
@@ -39,75 +42,296 @@ public class PicoLimboWrapper {
 
       // Set executable permissions on Unix systems
       if (!isWindows()) {
-        binaryFile.setExecutable(true, false);
+        currentBinaryFile.setExecutable(true, false);
         System.out.println("[TPMC Limbo] Set executable permissions");
       }
 
       // Register shutdown hook
       registerShutdownHook();
 
-      // Launch PicoLimbo
-      System.out.println("[TPMC Limbo] Launching PicoLimbo...");
-      ProcessBuilder processBuilder = new ProcessBuilder(binaryFile.getAbsolutePath());
-      processBuilder.directory(new File(System.getProperty("user.dir")));
-      processBuilder.redirectErrorStream(true);
+      // Launch PicoLimbo in a restart loop
+      while (true) {
+        shouldRestart = false;
+        try {
+          int exitCode = launchPicoLimbo();
 
-      picoLimboProcess = processBuilder.start();
-
-      // Forward output from PicoLimbo to console
-      Thread outputThread = new Thread(() -> {
-        try (BufferedReader reader = new BufferedReader(
-            new InputStreamReader(picoLimboProcess.getInputStream()))) {
-          String line;
-          while ((line = reader.readLine()) != null) {
-            System.out.println(line);
+          if (!shouldRestart) {
+            System.out.println("[TPMC Limbo] PicoLimbo exited with code " + exitCode);
+            System.exit(exitCode);
           }
-        } catch (IOException e) {
-          // Process ended, this is normal
-        }
-      });
-      outputThread.setDaemon(false);
-      outputThread.start();
 
-      // Monitor console input for stop commands
-      Thread inputThread = new Thread(() -> {
-        try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in))) {
-          String line;
-          while ((line = consoleReader.readLine()) != null) {
-            String command = line.trim().toLowerCase();
-
-            // Check for stop/exit/quit commands
-            if (command.equals("stop") || command.equals("exit") || command.equals("quit") || command.equals("end")) {
-              System.out.println("[TPMC Limbo] Received stop command, shutting down...");
-              if (picoLimboProcess != null && picoLimboProcess.isAlive()) {
-                picoLimboProcess.destroy(); // Sends SIGTERM on Unix, terminates on Windows
-                try {
-                  if (!picoLimboProcess.waitFor(5, TimeUnit.SECONDS)) {
-                    picoLimboProcess.destroyForcibly(); // Force kill if needed
-                  }
-                } catch (InterruptedException e) {
-                  picoLimboProcess.destroyForcibly();
-                }
-              }
-              System.exit(0);
-            }
-            // PicoLimbo doesn't read stdin, so we just ignore other input
+          System.out.println("[TPMC Limbo] Restarting PicoLimbo...");
+        } catch (Exception e) {
+          if (shouldRestart) {
+            System.err.println("[TPMC Limbo] Error during restart: " + e.getMessage());
+            System.out.println("[TPMC Limbo] Attempting to restart...");
+          } else {
+            throw e;
           }
-        } catch (IOException e) {
-          // Console closed, this is normal
         }
-      });
-      inputThread.setDaemon(true);
-      inputThread.start();
-
-      // Wait for process to complete
-      int exitCode = picoLimboProcess.waitFor();
-      System.exit(exitCode);
+      }
 
     } catch (Exception e) {
       System.err.println("[TPMC Limbo] Error: " + e.getMessage());
       e.printStackTrace();
       System.exit(1);
+    }
+  }
+
+  private static int launchPicoLimbo() throws IOException, InterruptedException {
+    System.out.println("[TPMC Limbo] Launching PicoLimbo...");
+    ProcessBuilder processBuilder = new ProcessBuilder(currentBinaryFile.getAbsolutePath());
+    processBuilder.directory(new File(System.getProperty("user.dir")));
+    processBuilder.redirectErrorStream(true);
+
+    picoLimboProcess = processBuilder.start();
+
+    // Forward output from PicoLimbo to console
+    Thread outputThread = new Thread(() -> {
+      try (BufferedReader reader = new BufferedReader(
+          new InputStreamReader(picoLimboProcess.getInputStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          System.out.println(line);
+        }
+      } catch (IOException e) {
+        // Process ended, this is normal
+      }
+    });
+    outputThread.setDaemon(false);
+    outputThread.start();
+
+    // Monitor console input for stop and update commands
+    Thread inputThread = new Thread(() -> {
+      try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in))) {
+        String line;
+        while ((line = consoleReader.readLine()) != null) {
+          String command = line.trim().toLowerCase();
+
+          // Check for stop/exit/quit commands
+          if (command.equals("stop") || command.equals("exit") || command.equals("quit") || command.equals("end")) {
+            System.out.println("[TPMC Limbo] Received stop command, shutting down...");
+            if (picoLimboProcess != null && picoLimboProcess.isAlive()) {
+              picoLimboProcess.destroy();
+              try {
+                if (!picoLimboProcess.waitFor(5, TimeUnit.SECONDS)) {
+                  picoLimboProcess.destroyForcibly();
+                }
+              } catch (InterruptedException e) {
+                picoLimboProcess.destroyForcibly();
+              }
+            }
+            System.exit(0);
+          }
+          // Check for update command
+          else if (command.equals("update") || command.equals("reload")) {
+            System.out.println("[TPMC Limbo] Received update command, downloading latest version...");
+            handleUpdate();
+          }
+        }
+      } catch (IOException e) {
+        // Console closed, this is normal
+      }
+    });
+    inputThread.setDaemon(true);
+    inputThread.start();
+
+    // Wait for process to complete
+    int exitCode = picoLimboProcess.waitFor();
+    
+    // If an update is in progress, wait for it to complete
+    synchronized (updateLock) {
+      while (isUpdating) {
+        try {
+          updateLock.wait();
+        } catch (InterruptedException e) {
+          // Interrupted, continue
+        }
+      }
+    }
+    
+    return exitCode;
+  }
+
+  private static void handleUpdate() {
+    synchronized (updateLock) {
+      isUpdating = true;
+    }
+    
+    File backupBinary = null;
+    try {
+      // Download new version (while PicoLimbo is still running)
+      File archiveFile = new File(BINARIES_DIR, currentArchiveName);
+
+      System.out.println("[TPMC Limbo] Downloading latest version...");
+      downloadArchive(currentArchiveName, archiveFile);
+
+      // Extract to temporary directory
+      System.out.println("[TPMC Limbo] Extracting new version...");
+      File tempDir = new File(BINARIES_DIR, "update_temp");
+      if (tempDir.exists()) {
+        deleteDirectory(tempDir);
+      }
+      tempDir.mkdirs();
+
+      extractArchive(archiveFile, tempDir);
+
+      // Find the extracted binary in temp directory
+      String binaryName = isWindows() ? "pico_limbo.exe" : "pico_limbo";
+      File newBinary = new File(tempDir, binaryName);
+
+      if (!newBinary.exists()) {
+        throw new IOException("Extracted binary not found: " + newBinary.getPath());
+      }
+
+      // Set executable permissions on Unix
+      if (!isWindows()) {
+        newBinary.setExecutable(true, false);
+      }
+
+      System.out.println("[TPMC Limbo] Stopping current server...");
+
+      // Stop current process
+      if (picoLimboProcess != null && picoLimboProcess.isAlive()) {
+        picoLimboProcess.destroy();
+        if (!picoLimboProcess.waitFor(5, TimeUnit.SECONDS)) {
+          picoLimboProcess.destroyForcibly();
+        }
+      }
+
+      // Small delay to ensure file handles are released
+      Thread.sleep(500);
+
+      // Backup old binary
+      backupBinary = new File(BINARIES_DIR, binaryName + ".backup");
+      if (backupBinary.exists()) {
+        backupBinary.delete();
+      }
+      if (currentBinaryFile.exists()) {
+        currentBinaryFile.renameTo(backupBinary);
+      }
+
+      // Move new binary to final location
+      System.out.println("[TPMC Limbo] Installing new binary...");
+      if (!newBinary.renameTo(currentBinaryFile)) {
+        // If rename fails (cross-device link), try copy
+        Files.copy(newBinary.toPath(), currentBinaryFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        newBinary.delete();
+      }
+
+      // Set executable permissions again on Unix (in case copy was used)
+      if (!isWindows()) {
+        currentBinaryFile.setExecutable(true, false);
+      }
+
+      // Clean up temp dir and archive
+      deleteDirectory(tempDir);
+      if (archiveFile.exists()) {
+        archiveFile.delete();
+      }
+
+      // Verify the new binary by attempting to start it and checking for "Listening" message
+      System.out.println("[TPMC Limbo] Verifying new binary...");
+      ProcessBuilder verifyBuilder = new ProcessBuilder(currentBinaryFile.getAbsolutePath());
+      verifyBuilder.redirectErrorStream(true);
+      Process verifyProcess = verifyBuilder.start();
+
+      // Read output and look for "Listening" message
+      final boolean[] foundListening = {false};
+      Thread outputReader = new Thread(() -> {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(verifyProcess.getInputStream()))) {
+          String line;
+          while ((line = reader.readLine()) != null) {
+            if (line.contains("Listening on:")) {
+              foundListening[0] = true;
+              break;
+            }
+          }
+        } catch (IOException e) {
+          // Ignore
+        }
+      });
+      outputReader.start();
+
+      // Wait up to 5 seconds for the "Listening" message
+      for (int i = 0; i < 50; i++) {
+        if (foundListening[0]) {
+          break;
+        }
+        if (!verifyProcess.isAlive()) {
+          throw new IOException("New binary crashed during verification (exit code: " + verifyProcess.exitValue() + ")");
+        }
+        Thread.sleep(100);
+      }
+
+      // Kill the test process
+      verifyProcess.destroy();
+      if (!verifyProcess.waitFor(5, TimeUnit.SECONDS)) {
+        verifyProcess.destroyForcibly();
+      }
+
+      if (!foundListening[0]) {
+        throw new IOException("New binary verification failed: did not see 'Listening' message within 5 seconds");
+      }
+
+      System.out.println("[TPMC Limbo] Verification successful! Update complete, restarting PicoLimbo...");
+
+      // Delete backup since update was successful
+      if (backupBinary != null && backupBinary.exists()) {
+        backupBinary.delete();
+      }
+
+      // NOW signal restart after everything is done
+      shouldRestart = true;
+
+    } catch (Exception e) {
+      System.err.println("[TPMC Limbo] Update failed: " + e.getMessage());
+      e.printStackTrace();
+
+      // Clean up temporary files
+      File tempDir = new File(BINARIES_DIR, "update_temp");
+      if (tempDir.exists()) {
+        deleteDirectory(tempDir);
+      }
+
+      // Restore backup if it exists
+      if (backupBinary != null && backupBinary.exists()) {
+        System.out.println("[TPMC Limbo] Restoring previous version...");
+        if (currentBinaryFile.exists()) {
+          currentBinaryFile.delete();
+        }
+        backupBinary.renameTo(currentBinaryFile);
+
+        // Set executable permissions on Unix
+        if (!isWindows()) {
+          currentBinaryFile.setExecutable(true, false);
+        }
+      }
+
+      // Signal restart with the old binary
+      shouldRestart = true;
+    } finally {
+      // Always clear the updating flag and notify waiting threads
+      synchronized (updateLock) {
+        isUpdating = false;
+        updateLock.notifyAll();
+      }
+    }
+  }
+
+  private static void deleteDirectory(File directory) {
+    if (directory.exists()) {
+      File[] files = directory.listFiles();
+      if (files != null) {
+        for (File file : files) {
+          if (file.isDirectory()) {
+            deleteDirectory(file);
+          } else {
+            file.delete();
+          }
+        }
+      }
+      directory.delete();
     }
   }
 
