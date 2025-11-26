@@ -42,6 +42,7 @@ java -jar build/libs/PicoLimboWrapper.jar
 ```
 
 On Windows:
+
 ```powershell
 .\gradlew.bat shadowJar
 java -jar build\libs\PicoLimboWrapper.jar
@@ -60,6 +61,7 @@ java -jar build\libs\PicoLimboWrapper.jar
 ## Example Output
 
 ### First Run (with download):
+
 ```
 [Wrapper] Starting PicoLimbo Wrapper...
 [Wrapper] Detected OS: Linux x86_64
@@ -75,6 +77,7 @@ java -jar build\libs\PicoLimboWrapper.jar
 ```
 
 ### Subsequent Runs (cached binary):
+
 ```
 [Wrapper] Starting PicoLimbo Wrapper...
 [Wrapper] Detected OS: Linux x86_64
@@ -105,12 +108,12 @@ For PicoLimbo configuration options, see the [PicoLimbo documentation](https://g
 
 **Note:** The current PicoLimbo releases provide archives (`.zip`, `.tar.gz`) rather than raw binaries. The wrapper is configured to download these archives. Future versions will include automatic extraction.
 
-| Platform | Architecture | Archive |
-|----------|-------------|---------|
-| Windows | x64 | `pico_limbo_windows-x86_64.zip` |
-| Linux | x64 | `pico_limbo_linux-x86_64-musl.tar.gz` |
-| Linux | ARM64 | `pico_limbo_linux-aarch64-musl.tar.gz` |
-| macOS | ARM64 | `pico_limbo_macos-aarch64.tar.gz` |
+| Platform | Architecture | Archive                                |
+| -------- | ------------ | -------------------------------------- |
+| Windows  | x64          | `pico_limbo_windows-x86_64.zip`        |
+| Linux    | x64          | `pico_limbo_linux-x86_64-musl.tar.gz`  |
+| Linux    | ARM64        | `pico_limbo_linux-aarch64-musl.tar.gz` |
+| macOS    | ARM64        | `pico_limbo_macos-aarch64.tar.gz`      |
 
 ## Project Structure
 
@@ -137,25 +140,30 @@ PicoLimboWrapper/
 ## Troubleshooting
 
 ### "Unsupported operating system" error
+
 The wrapper currently supports Windows (x64), Linux (x64), and Linux (ARM64). If you need support for additional platforms, please check if PicoLimbo provides binaries for your system.
 
 ### Download fails
+
 - Check your internet connection
 - Verify you can access `https://api.github.com`
 - GitHub API has rate limits (60 requests/hour for unauthenticated requests)
 - Try again in a few minutes if you've hit the rate limit
 
 ### Binary doesn't execute
+
 - On Linux: Ensure the wrapper has permission to set executable bits
 - Check that you have the correct architecture binary
 - Verify the downloaded binary isn't corrupted (delete `binaries/` and retry)
 
 ### Console input not working
+
 The wrapper forwards stdin to PicoLimbo. If commands aren't working, verify that PicoLimbo itself supports console input in its current version.
 
 ## Building
 
 ### Requirements
+
 - JDK 11 or higher
 - Gradle 7.0+ (or use included wrapper)
 
@@ -190,6 +198,7 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 ## Version History
 
 ### 1.0.0
+
 - Initial release
 - Automatic binary download from GitHub releases
 - Cross-platform support (Windows, Linux x64/ARM64)
