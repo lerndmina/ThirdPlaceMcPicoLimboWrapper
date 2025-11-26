@@ -121,6 +121,7 @@ download.url=
   - Example: `github.repo=YourUsername/CustomPicoLimbo`
 
 - **`download.url`**: Provide a direct download URL for the PicoLimbo archive
+
   - If set, bypasses GitHub API and downloads from this URL
   - Useful for custom builds, avoiding rate limits, or pinning to a specific version
   - Leave empty to use GitHub releases (default)
