@@ -286,15 +286,23 @@ public class PicoLimboWrapper {
   }
 
   private static void showStatus() {
-    Logger.info("Instance Status:");
+    System.out.println("\n\u001B[36m╔════════════════════════════════════════════════════════════════╗\u001B[0m");
+    System.out.println(
+        "\u001B[36m║\u001B[0m                     \u001B[1mInstance Status\u001B[0m                         \u001B[36m║\u001B[0m");
+    System.out.println("\u001B[36m╠════════════════════════════════════════════════════════════════╣\u001B[0m");
+
     for (Map.Entry<String, InstanceInfo> entry : instances.entrySet()) {
       String name = entry.getKey();
       InstanceInfo instance = entry.getValue();
-      String status = instance.isRunning() ? "\u001B[32mRUNNING\u001B[0m" : "\u001B[31mSTOPPED\u001B[0m";
+      String status = instance.isRunning() ? "\u001B[32m● RUNNING\u001B[0m" : "\u001B[90m○ STOPPED\u001B[0m";
       String config = instance.getConfigPath();
-      String restarts = instance.getRestartCount() > 0 ? " (restarts: " + instance.getRestartCount() + ")" : "";
-      Logger.info("  " + name + ": " + status + " - " + config + restarts);
+      String restarts = instance.getRestartCount() > 0 ? " \u001B[33m↻" + instance.getRestartCount() + "\u001B[0m" : "";
+
+      System.out.printf("\u001B[36m║\u001B[0m  \u001B[1m%-15s\u001B[0m %s %s%s\n",
+          name, status, config, restarts);
     }
+
+    System.out.println("\u001B[36m╚════════════════════════════════════════════════════════════════╝\u001B[0m\n");
   }
 
   private static void showHelp() {

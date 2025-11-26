@@ -27,21 +27,6 @@ github.repo=Quozul/PicoLimbo
 download.url=
 
 # ============================
-# Multi-Instance Configuration
-# ============================
-
-# List of instance names (comma-separated)
-# If not specified or empty, runs in single-instance legacy mode with server.toml
-# Example: instances=lobby,survival,creative
-#instances=
-
-# ============================
-# Example: Single Instance Mode (Legacy)
-# ============================
-# If 'instances' is not defined, the wrapper runs ONE instance using server.toml
-# No additional configuration needed
-
-# ============================
 # Example: Multi-Instance Mode
 # ============================
 # Uncomment and configure to run multiple instances:
