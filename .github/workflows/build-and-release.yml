@@ -41,12 +41,16 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           draft: true
-          name: Draft Release ${{ github.sha }}
-          tag_name: draft-${{ github.sha }}
+          name: "Draft ${{ github.run_number }} - ${{ github.event.head_commit.message }}"
+          tag_name: draft-${{ github.run_number }}
           files: build/libs/PicoLimboWrapper.jar
           body: |
             ## Changes
             Automated draft release from commit ${{ github.sha }}
+            
+            **Commit Message:** ${{ github.event.head_commit.message }}
+            **Author:** ${{ github.event.head_commit.author.name }}
+            **Build:** #${{ github.run_number }}
 
             Review and publish this release when ready.
         env:
