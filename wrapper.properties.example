@@ -1,7 +1,11 @@
 #PicoLimbo Wrapper Configuration
 #
-# This file allows you to customize the wrapper's download behavior.
+# This file allows you to customize the wrapper's download behavior and instance management.
 # The wrapper will automatically create this file with default values on first run.
+
+# ============================
+# Binary Download Configuration
+# ============================
 
 # GitHub repository to fetch releases from (format: owner/repo)
 # Default: Quozul/PicoLimbo
@@ -21,3 +25,43 @@ github.repo=Quozul/PicoLimbo
 #  - Custom server: download.url=https://example.com/picolimbo/custom-build.zip
 #  - Local network: download.url=http://192.168.1.100/pico_limbo.zip
 download.url=
+
+# ============================
+# Multi-Instance Configuration
+# ============================
+
+# List of instance names (comma-separated)
+# If not specified or empty, runs in single-instance legacy mode with server.toml
+# Example: instances=lobby,survival,creative
+#instances=
+
+# ============================
+# Example: Single Instance Mode (Legacy)
+# ============================
+# If 'instances' is not defined, the wrapper runs ONE instance using server.toml
+# No additional configuration needed
+
+# ============================
+# Example: Multi-Instance Mode
+# ============================
+# Uncomment and configure to run multiple instances:
+
+# Define instances
+#instances=lobby,survival,creative
+
+# Lobby instance (auto-start on wrapper startup)
+#instance.lobby.config=configs/lobby.toml
+#instance.lobby.autoStart=true
+
+# Survival instance (auto-start on wrapper startup)
+#instance.survival.config=configs/survival.toml
+#instance.survival.autoStart=true
+
+# Creative instance (manual start with 'start creative' command)
+#instance.creative.config=configs/creative.toml
+#instance.creative.autoStart=false
+
+# IMPORTANT: Each instance's TOML config must specify a unique port
+# Example lobby.toml:    bind = "0.0.0.0:25565"
+# Example survival.toml: bind = "0.0.0.0:25566"
+# Example creative.toml: bind = "0.0.0.0:25567"

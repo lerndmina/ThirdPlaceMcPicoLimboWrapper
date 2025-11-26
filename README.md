@@ -1,15 +1,19 @@
 # PicoLimbo Wrapper
 
-A Java wrapper application that automatically downloads and launches the latest [PicoLimbo](https://github.com/Quozul/PicoLimbo) Minecraft limbo server binary.
+A Java wrapper application that automatically downloads and launches the latest [PicoLimbo](https://github.com/Quozul/PicoLimbo) Minecraft limbo server binary with support for running multiple server instances simultaneously.
 
 ## Features
 
 - 🚀 **Automatic Binary Download**: Downloads the latest PicoLimbo release from GitHub on first run
 - 🖥️ **Cross-Platform**: Supports Windows (x64), Linux (x64, ARM64)
-- 🔄 **Transparent I/O**: Bidirectional console forwarding (stdin/stdout/stderr)
-- 🛡️ **Graceful Shutdown**: Properly handles SIGTERM and forwards to child process
+- 🔄 **Multi-Instance Support**: Run multiple PicoLimbo instances with different configurations
+- 🎮 **Instance Management**: Start, stop, and restart individual instances via console commands
+- 🔄 **Transparent I/O**: Bidirectional console forwarding with per-instance prefixes
+- 🔄 **Hot Reload**: Update PicoLimbo binary without restarting the wrapper
+- 🛡️ **Graceful Shutdown**: Properly handles shutdown signals and forwards to child processes
 - 📦 **Single JAR**: Self-contained executable with all dependencies included
 - 💾 **Smart Caching**: Downloaded binaries are cached in `binaries/` directory
+- 🔁 **Auto-Restart**: Configurable automatic restart on crash (up to 5 times)
 
 ## Requirements
 
@@ -63,28 +67,57 @@ java -jar build\libs\PicoLimboWrapper.jar
 ### First Run (with download):
 
 ```
-[TPMC Limbo] Starting PicoLimbo Wrapper...
-[TPMC Limbo] Detected OS: Linux x86_64
-[TPMC Limbo] Binary not found, fetching latest release...
-[TPMC Limbo] Downloading pico_limbo-x86_64-unknown-linux-gnu...
-[TPMC Limbo] Download progress: 10%
-[TPMC Limbo] Download progress: 20%
+[2024-01-15T10:00:00.000000Z] [INFO] Starting PicoLimbo Wrapper...
+[2024-01-15T10:00:00.100000Z] [INFO] Detected OS: Linux x86_64
+[2024-01-15T10:00:00.200000Z] [INFO] Binary not found, fetching latest release...
+[2024-01-15T10:00:01.000000Z] [INFO] Downloading pico_limbo-x86_64-unknown-linux-gnu.tar.gz...
+[2024-01-15T10:00:02.000000Z] [INFO] Download progress: 10%
+[2024-01-15T10:00:03.000000Z] [INFO] Download progress: 20%
 ...
-[TPMC Limbo] Download complete
-[TPMC Limbo] Set executable permissions
-[TPMC Limbo] Launching PicoLimbo...
-[PicoLimbo output follows...]
+[2024-01-15T10:00:10.000000Z] [INFO] Download complete
+[2024-01-15T10:00:10.500000Z] [INFO] Extracting TAR.GZ archive...
+[2024-01-15T10:00:11.000000Z] [INFO] Extraction complete
+[2024-01-15T10:00:11.100000Z] [INFO] Set executable permissions
+[2024-01-15T10:00:11.200000Z] [INFO] Configured instances: lobby, survival
+[2024-01-15T10:00:11.300000Z] [INFO] Starting instance: lobby
+[2024-01-15T10:00:12.000000Z] [INFO] Starting instance: survival
+[lobby] [PicoLimbo] Listening on: 0.0.0.0:25565
+[survival] [PicoLimbo] Listening on: 0.0.0.0:25566
 ```
 
-### Subsequent Runs (cached binary):
+### Subsequent Runs (cached binary, multi-instance):
 
 ```
-[TPMC Limbo] Starting PicoLimbo Wrapper...
-[TPMC Limbo] Detected OS: Linux x86_64
-[TPMC Limbo] Binary found: pico_limbo-x86_64-unknown-linux-gnu
-[TPMC Limbo] Set executable permissions
-[TPMC Limbo] Launching PicoLimbo...
-[PicoLimbo output follows...]
+[2024-01-15T10:30:00.000000Z] [INFO] Starting PicoLimbo Wrapper...
+[2024-01-15T10:30:00.100000Z] [INFO] Detected OS: Linux x86_64
+[2024-01-15T10:30:00.200000Z] [INFO] Binary found: pico_limbo
+[2024-01-15T10:30:00.300000Z] [INFO] Set executable permissions
+[2024-01-15T10:30:00.400000Z] [INFO] Configured instances: lobby, survival
+[2024-01-15T10:30:00.500000Z] [INFO] Starting instance: lobby
+[2024-01-15T10:30:01.200000Z] [INFO] Starting instance: survival
+[lobby] [PicoLimbo] Listening on: 0.0.0.0:25565
+[survival] [PicoLimbo] Listening on: 0.0.0.0:25566
+```
+
+### Hot Reload (update command):
+
+```
+> update
+[2024-01-15T11:00:00.000000Z] [INFO] Received update command, downloading latest version...
+[2024-01-15T11:00:00.500000Z] [INFO] Downloading latest version...
+[2024-01-15T11:00:05.000000Z] [INFO] Download complete
+[2024-01-15T11:00:05.500000Z] [INFO] Extracting new version...
+[2024-01-15T11:00:06.000000Z] [INFO] Extraction complete
+[2024-01-15T11:00:06.100000Z] [INFO] Stopping all running instances...
+[2024-01-15T11:00:06.200000Z] [INFO] Stopping instance: lobby
+[2024-01-15T11:00:06.300000Z] [INFO] Stopping instance: survival
+[2024-01-15T11:00:07.000000Z] [INFO] Installing new binary...
+[2024-01-15T11:00:07.500000Z] [INFO] Verifying new binary...
+[2024-01-15T11:00:10.000000Z] [INFO] Verification successful! Update complete, restarting instances...
+[2024-01-15T11:00:10.100000Z] [INFO] Restarting instance: lobby
+[2024-01-15T11:00:10.800000Z] [INFO] Restarting instance: survival
+[lobby] [PicoLimbo] Listening on: 0.0.0.0:25565
+[survival] [PicoLimbo] Listening on: 0.0.0.0:25566
 ```
 
 ## Pterodactyl Panel Usage
@@ -100,7 +133,7 @@ The wrapper will automatically download PicoLimbo on first startup. The download
 
 ## Configuration
 
-The wrapper itself requires minimal configuration. On first run, it will create a `wrapper.properties` file with default settings.
+The wrapper supports both single-instance (legacy) and multi-instance modes through `wrapper.properties`.
 
 ### wrapper.properties
 
@@ -110,6 +143,20 @@ github.repo=Quozul/PicoLimbo
 
 # Direct download URL (overrides GitHub if set)
 download.url=
+
+# Multi-instance configuration (optional)
+# Format: instances=instance1,instance2,instance3
+instances=lobby,survival,creative
+
+# Per-instance configuration paths
+instance.lobby.config=configs/lobby.toml
+instance.lobby.autoStart=true
+
+instance.survival.config=configs/survival.toml
+instance.survival.autoStart=true
+
+instance.creative.config=configs/creative.toml
+instance.creative.autoStart=false
 ```
 
 **Configuration Options:**
@@ -135,32 +182,111 @@ download.url=
     download.url=https://example.com/builds/pico_limbo.zip
     ```
 
-All PicoLimbo settings are managed through the standard `server.toml` file, which should be placed in the same directory as the wrapper JAR.
+- **`instances`**: Comma-separated list of instance names (multi-instance mode)
 
-For PicoLimbo configuration options, see the [PicoLimbo documentation](https://github.com/Quozul/PicoLimbo).
+  - If omitted or empty, runs in single-instance legacy mode with `server.toml`
+  - Example: `instances=lobby,survival,creative`
 
-## Stopping the Server
+- **`instance.<name>.config`**: Path to the TOML config file for this instance
 
-The wrapper supports multiple methods for gracefully stopping PicoLimbo:
+  - Required for each instance defined in `instances`
+  - Relative to wrapper directory
+  - Example: `instance.lobby.config=configs/lobby.toml`
 
-### Console Commands
+- **`instance.<name>.autoStart`**: Whether to start this instance on wrapper startup
 
-Type any of these commands in the console:
+  - Default: `true`
+  - Example: `instance.creative.autoStart=false`
 
-- `stop`
-- `exit`
-- `quit`
-- `end`
+### Single Instance Mode (Legacy)
 
-The wrapper will send a SIGTERM signal to PicoLimbo and wait up to 5 seconds for graceful shutdown.
+If the `instances` property is not defined or empty, the wrapper runs in legacy single-instance mode:
+
+```properties
+github.repo=Quozul/PicoLimbo
+download.url=
+```
+
+The wrapper will use `server.toml` in the current directory as the configuration file.
+
+### Multi-Instance Mode
+
+Define multiple instances with different configurations:
+
+```properties
+instances=lobby,survival
+
+instance.lobby.config=configs/lobby.toml
+instance.lobby.autoStart=true
+
+instance.survival.config=configs/survival.toml
+instance.survival.autoStart=true
+```
+
+Each instance configuration file should specify a unique port to avoid conflicts:
+
+**configs/lobby.toml:**
+
+```toml
+bind = "0.0.0.0:25565"
+motd = "Lobby Server"
+```
+
+**configs/survival.toml:**
+
+```toml
+bind = "0.0.0.0:25566"
+motd = "Survival Server"
+```
+
+All PicoLimbo settings are managed through the TOML configuration files. For PicoLimbo configuration options, see the [PicoLimbo documentation](https://github.com/Quozul/PicoLimbo).
+
+## Console Commands
+
+The wrapper provides an interactive console for managing instances:
+
+### Single Instance Mode
+
+- `stop` / `exit` / `quit` / `end` - Stop the server and exit wrapper
+- `update` / `reload` - Download latest PicoLimbo version and restart
+- `help` - Show available commands
+
+### Multi-Instance Mode
+
+- `stop` - Stop all instances and exit wrapper
+- `stop <instance>` - Stop a specific instance
+- `start <instance>` - Start a specific instance
+- `restart <instance>` - Restart a specific instance
+- `status` - Show status of all instances
+- `update` / `reload` - Update PicoLimbo binary and restart all running instances
+- `help` - Show available commands
+- `exit` / `quit` / `end` - Stop all instances and exit wrapper
+
+**Examples:**
+
+```
+> status
+  lobby: RUNNING - configs/lobby.toml
+  survival: RUNNING - configs/survival.toml (restarts: 1)
+  creative: STOPPED - configs/creative.toml
+
+> stop survival
+[2024-01-15T10:30:45.123456Z] [INFO] Stopping instance: survival
+
+> start creative
+[2024-01-15T10:31:00.789012Z] [INFO] Starting instance: creative
+
+> restart lobby
+[2024-01-15T10:31:15.234567Z] [INFO] Restarting instance: lobby
+```
 
 ### Signal Handling
 
-- **SIGTERM/SIGINT**: The wrapper catches these signals and forwards them to PicoLimbo
+- **SIGTERM/SIGINT**: The wrapper catches these signals and forwards them to all running instances
 - **Ctrl+C**: Triggers graceful shutdown on all platforms
 - **Pterodactyl**: Use the panel's stop button (sends SIGTERM)
 
-**Note:** PicoLimbo itself does not read console input. The wrapper intercepts stop commands and handles shutdown on your behalf.
+The wrapper will wait up to 5 seconds for each instance to shutdown gracefully before forcefully terminating.
 
 ## Supported Platforms
 
