@@ -4,8 +4,8 @@ A Java wrapper application that automatically downloads and launches the latest 
 
 ## Features
 
-- 🚀 **Automatic Binary Download**: Downloads the latest PicoLimbo release from GitHub on first run
-- 🖥️ **Cross-Platform**: Supports Windows (x64), Linux (x64, ARM64)
+- 🚀 **Automatic Binary Download & Extraction**: Downloads and extracts the latest PicoLimbo release from GitHub on first run
+- 🖥️ **Cross-Platform**: Supports Windows (x64), Linux (x64, ARM64), macOS (ARM64)
 - 🔄 **Multi-Instance Support**: Run multiple PicoLimbo instances with different configurations
 - 🎮 **Instance Management**: Start, stop, and restart individual instances via console commands
 - 🔄 **Transparent I/O**: Bidirectional console forwarding with per-instance prefixes
@@ -56,11 +56,12 @@ java -jar build\libs\PicoLimboWrapper.jar
 
 1. **OS Detection**: Detects your operating system and architecture
 2. **Binary Check**: Looks for the PicoLimbo binary in the `binaries/` directory
-3. **Auto-Download**: If not found, downloads the latest release from GitHub
-4. **Permission Setup**: Sets executable permissions on Unix systems
-5. **Process Launch**: Starts PicoLimbo as a child process
-6. **I/O Forwarding**: Forwards all console input/output bidirectionally
-7. **Shutdown Handling**: Gracefully terminates PicoLimbo on exit
+3. **Auto-Download**: If not found, downloads the latest release archive from GitHub
+4. **Auto-Extract**: Extracts the binary from the downloaded archive (`.zip` or `.tar.gz`)
+5. **Permission Setup**: Sets executable permissions on Unix systems
+6. **Process Launch**: Starts PicoLimbo as a child process
+7. **I/O Forwarding**: Forwards all console input/output bidirectionally
+8. **Shutdown Handling**: Gracefully terminates PicoLimbo on exit
 
 ## Example Output
 
@@ -290,7 +291,7 @@ The wrapper will wait up to 5 seconds for each instance to shutdown gracefully b
 
 ## Supported Platforms
 
-**Note:** The current PicoLimbo releases provide archives (`.zip`, `.tar.gz`) rather than raw binaries. The wrapper is configured to download these archives. Future versions will include automatic extraction.
+**Note:** The PicoLimbo releases provide archives (`.zip`, `.tar.gz`) rather than raw binaries. The wrapper automatically downloads and extracts these archives.
 
 | Platform | Architecture | Archive                                |
 | -------- | ------------ | -------------------------------------- |
